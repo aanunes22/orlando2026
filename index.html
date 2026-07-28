@@ -696,117 +696,94 @@ function importBackup(){const f=$('import-file').files[0];if(!f)return;const r=n
 $('import-file')?.addEventListener('change',importBackup)
 
 // ============ EXPORT PDF ============
-async function exportPDF() {
-  if(!window.jspdf||!window.html2canvas){alert('Bibliotecas não carregadas. Verifique sua conexão.');return}
+function exportPDF() {
+  if(!window.jspdf){alert('Biblioteca jsPDF nao carregada.');return}
   const{jsPDF}=window.jspdf
   const doc=new jsPDF('p','mm','a4')
-  const pw=210
-  function buildHTML(){
-    const total=data.expenses.reduce((s,e)=>s+e.amount,0)
-    const spent=data.expenses.reduce((s,e)=>s+e.amount,0)
-    const left=(data.totalBudget||0)-spent
-    const days=data.tripStart&&data.tripEnd?Math.round((new Date(data.tripEnd).getTime()-new Date(data.tripStart).getTime())/86400000)+1:0
-    function card(title,content){return`<div style="background:#f8f4f0;border-radius:8px;padding:14px 16px;margin-bottom:12px;border-left:4px solid #c8102e;page-break-inside:avoid"><div style="font-size:14px;font-weight:700;color:#c8102e;margin-bottom:8px">${title}</div>${content}</div>`}
-    function tag(cat){const m={hotel:'#1e3a5f',hospedagem:'#1e3a5f',transporte:'#3b2f1e',passagem:'#3b2f1e',parque:'#2d1b3d',parques:'#2d1b3d',compras:'#1e2d1e',alimentacao:'#3d1b1b',outros:'#1e1e2d'};const col=m[cat]||'#333';return`<span style="background:${col};color:#fff;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600">${cat}</span>`}
-    const lab=l=>`<span style="font-size:11px;color:#888">${l}</span>`
-    const val=(v,c)=>`<span style="font-size:13px;font-weight:700;color:${c||'#333'}">$${v.toFixed(2)}</span>`
-    let h=`<div style="font-family:'Helvetica Neue',Arial,sans-serif;color:#333;padding:8px;max-width:580px;margin:0 auto">`
+  const pw=210;const lm=14;const rm=14;const cw=pw-lm-rm
+  let y=20
+  function sp(h){y+=h}
+  function newP(){if(y>270){doc.addPage();y=20}}
+  function txt(s,x=lm,sz=9,c='#333',w=cw){doc.setFontSize(sz);doc.setTextColor(c);doc.text(s,x,y,{maxWidth:w});sp(sz*0.35)}
+  function txtR(s,x=lm,sz=9,c='#333'){doc.setFontSize(sz);doc.setTextColor(c);const w=doc.getTextWidth(s);doc.text(s,x+cw-w,y);sp(sz*0.35)}
+  function bold(s,sz=9,c='#333'){doc.setFont(undefined,'bold');doc.setFontSize(sz);doc.setTextColor(c);doc.text(s,lm,y);doc.setFont(undefined,'normal');sp(sz*0.35)}
+  function section(t,c='#c8102e'){newP();doc.setFillColor('#c8102e');doc.rect(lm,y-1,cw,6,'F');doc.setTextColor('#fff');doc.setFontSize(10);doc.setFont(undefined,'bold');doc.text(t,lm+2,y+3);doc.setFont(undefined,'normal');sp(7)}
+  function line(c='#ddd'){doc.setDrawColor(c);doc.line(lm,y,lm+cw,y);sp(2)}
+  function hr(c='#c8102e'){doc.setDrawColor(c);doc.setLineWidth(0.5);doc.line(lm,y,lm+cw,y);doc.setLineWidth(0.1);sp(4)}
+  function clean(s){return String(s||'').replace(/[^\x20-\x7E\u00C0-\u00FF\u0100-\u017F\u2010-\u2019\u201C-\u201D]/g,'')}
 
-    // Header
-    h+=`<div style="background:linear-gradient(135deg,#0b3b60,#c8102e);border-radius:10px;padding:20px;text-align:center;margin-bottom:16px">`
-    h+=`<div style="font-size:22px;font-weight:800;color:#fff;letter-spacing:1px">Orlando & Miami 2026</div>`
-    h+=`<div style="font-size:13px;color:#ffc72c;font-weight:600;margin-top:4px">Planejador de Viagem</div>`
-    h+=`</div>`
+  // Header
+  doc.setFillColor('#0b3b60');doc.rect(0,0,pw,28,'F')
+  doc.setFillColor('#c8102e');doc.rect(0,25,pw,3,'F')
+  doc.setTextColor('#fff');doc.setFontSize(16);doc.setFont(undefined,'bold');doc.text('Orlando & Miami 2026',pw/2,12,{align:'center'})
+  doc.setFontSize(9);doc.setTextColor('#ffc72c');doc.text('Planejador de Viagem',pw/2,21,{align:'center'})
+  doc.setFont(undefined,'normal')
+  y=34
 
-    // Summary cards
-    h+=`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">`
-    h+=`<div style="background:#f0e6d8;border-radius:6px;padding:10px;text-align:center"><div style="font-size:11px;color:#888">Dias</div><div style="font-size:18px;font-weight:700;color:#c8102e">${days||'-'}</div></div>`
-    h+=`<div style="background:#f0e6d8;border-radius:6px;padding:10px;text-align:center"><div style="font-size:11px;color:#888">Orçamento</div><div style="font-size:18px;font-weight:700;color:#0b3b60">$${(data.totalBudget||0).toFixed(0)}</div></div>`
-    h+=`<div style="background:#f0e6d8;border-radius:6px;padding:10px;text-align:center"><div style="font-size:11px;color:#888">Restante</div><div style="font-size:18px;font-weight:700;color:${left<0?'#c8102e':'#2d8a4e'}">$${Math.max(0,left).toFixed(0)}</div></div>`
-    h+=`</div>`
+  // Summary boxes
+  const total=data.expenses.reduce((s,e)=>s+e.amount,0)
+  const spent=total;const left=(data.totalBudget||0)-spent
+  const days=data.tripStart&&data.tripEnd?Math.round((new Date(data.tripEnd).getTime()-new Date(data.tripStart).getTime())/86400000)+1:0
+  const bxW=(cw-8)/3
+  ;[
+    {l:'Dias',v:days||'-',c:'#c8102e'},
+    {l:'Orcamento',v:'$'+(data.totalBudget||0).toFixed(0),c:'#0b3b60'},
+    {l:'Restante',v:'$'+Math.max(0,left).toFixed(0),c:left<0?'#c8102e':'#2d8a4e'}
+  ].forEach((b,i)=>{
+    const x=lm+i*(bxW+4)
+    doc.setFillColor('#f0e6d8');doc.rect(x,y-1,bxW,12,'F')
+    doc.setFontSize(7);doc.setTextColor('#888');doc.text(b.l,x+bxW/2,y+2,{align:'center'})
+    doc.setFontSize(11);doc.setFont(undefined,'bold');doc.setTextColor(b.c);doc.text(b.v,x+bxW/2,y+9,{align:'center'});doc.setFont(undefined,'normal')
+  })
+  sp(16)
 
-    // Trip info
-    h+=`<div style="display:flex;gap:16px;font-size:12px;color:#666;margin-bottom:16px;justify-content:center">`
-    h+=`<span>🗓️ <b>Ida:</b> ${data.tripStart||'—'} &nbsp;|&nbsp; <b>Volta:</b> ${data.tripEnd||'—'}</span>`
-    h+=`</div>`
+  // Trip dates
+  txt('Ida: '+(data.tripStart||'-')+'   Volta: '+(data.tripEnd||'-'),lm,8,'#666');sp(2);hr()
 
-    // Expenses
-    if(data.expenses.length){
-      let ex=card('Gastos',`<table style="width:100%;border-collapse:collapse;font-size:12px"><tr style="background:#e8ddd0"><th style="padding:6px 8px;text-align:left;color:#666;font-size:10px;text-transform:uppercase">Data</th><th style="padding:6px 8px;text-align:left;color:#666;font-size:10px;text-transform:uppercase">Descrição</th><th style="padding:6px 8px;text-align:left;color:#666;font-size:10px;text-transform:uppercase">Cat</th><th style="padding:6px 8px;text-align:right;color:#666;font-size:10px;text-transform:uppercase">Valor</th></tr>`)
-      data.expenses.sort((a,b)=>a.date?.localeCompare(b.date||'')).forEach(e=>{ex+=`<tr style="border-bottom:1px solid #e8ddd0"><td style="padding:5px 8px">${e.date||'-'}</td><td style="padding:5px 8px">${e.desc}</td><td style="padding:5px 8px">${tag(e.budgetCat||e.cat)}</td><td style="padding:5px 8px;text-align:right;font-weight:700">$${e.amount.toFixed(2)}</td></tr>`})
-      ex+=`<tr style="background:#e8ddd0"><td colspan="3" style="padding:6px 8px;font-weight:700">Total</td><td style="padding:6px 8px;text-align:right;font-weight:700;color:#c8102e">$${total.toFixed(2)}</td></tr></table>`)
-      h+=ex
-    }
-
-    // Itinerary
-    if(data.itinerary.some(d=>d.activities.length)){
-      let it=card('Itinerário','')
-      data.itinerary.forEach(day=>{
-        if(!day.activities.length)return
-        it+=`<div style="margin-bottom:8px;page-break-inside:avoid"><div style="font-size:12px;font-weight:700;color:#0b3b60;margin-bottom:4px">📅 Dia ${day.day}</div>`
-        day.activities.forEach(a=>{
-          it+=`<div style="display:flex;gap:6px;padding:3px 0;border-bottom:1px solid #eee;font-size:11px"><span style="color:#c8102e;font-weight:600;min-width:36px">${a.time||'--:--'}</span><span style="flex:1">${a.done?'✅':'○'} ${a.desc}</span>${a.cost?`<span style="color:#888">$${a.cost.toFixed(0)}</span>`:''}</div>`
-        })
-        it+=`</div>`
-      })
-      h+=it+`</div>`
-    }
-
-    // Map markers
-    if(data.mapMarkers.length){
-      let mk=''
-      data.mapMarkers.forEach((m,i)=>{mk+=`<div style="font-size:11px;padding:3px 0">📍 <b>${i+1}.</b> ${m.name}</div>`})
-      h+=card('Locais no Mapa',mk)
-    }
-
-    // Packing
-    if(data.packing.length){
-      let pk=''
-      data.packing.forEach(c=>{
-        const d=c.items.filter(i=>i.done).length;const t=c.items.length
-        const pct=t>0?Math.round(d/t*100):0
-        pk+=`<div style="margin-bottom:6px;page-break-inside:avoid"><div style="display:flex;justify-content:space-between;font-size:11px"><b>${c.cat}</b><span style="color:${pct===100?'#2d8a4e':'#888'}">${d}/${t} (${pct}%)</span></div>`
-        pk+=`<div style="background:#e8ddd0;height:6px;border-radius:3px;margin:3px 0;overflow:hidden"><div style="height:100%;width:${pct}%;background:${pct===100?'#2d8a4e':'#c8102e'};border-radius:3px"></div></div>`
-        c.items.forEach(i=>{pk+=`<div style="font-size:10px;padding:1px 0;color:${i.done?'#999':'#333'}">${i.done?'✓':'○'} ${i.name}</div>`})
-        pk+=`</div>`
-      })
-      h+=card('Mala',pk)
-    }
-
-    // Log
-    if(data.log.length){
-      let lg=''
-      data.log.sort((a,b)=>b.id-a.id).slice(0,20).forEach(l=>{
-        lg+=`<div style="border-bottom:1px solid #e8ddd0;padding:5px 0"><div style="font-size:11px;font-weight:600;color:#c8102e">${l.date}${l.km?` <span style="color:#888;font-weight:400">🚗 ${l.km}km</span>`:''}</div><div style="font-size:11px;color:#555;margin-top:2px">${l.text}</div></div>`
-      })
-      h+=card('Diário de Bordo',lg)
-    }
-
-    h+=`<div style="text-align:center;font-size:10px;color:#aaa;margin-top:16px;padding-top:8px;border-top:1px solid #e8ddd0">Gerado em ${new Date().toLocaleDateString('pt-BR')} — Orlando & Miami 2026 Planner</div>`
-    h+=`</div>`
-    return h
+  // Expenses
+  if(data.expenses.length){
+    section('Gastos')
+    data.expenses.sort((a,b)=>a.date?.localeCompare(b.date||'')).forEach(e=>{newP();doc.setFontSize(7);doc.setTextColor('#888');doc.text(e.date||'-',lm,y);doc.setFontSize(8);doc.setTextColor('#333');doc.text(e.desc,lm+20,y);doc.setFontSize(9);doc.setTextColor('#333');doc.text('$'+e.amount.toFixed(2),lm+cw-doc.getTextWidth('$'+e.amount.toFixed(2)),y);sp(3.5);line()})
+    line();bold('Total  $'+total.toFixed(2),9,'#c8102e');sp(1)
   }
-  const el=document.createElement('div')
-  el.innerHTML=buildHTML()
-  el.style.position='fixed';el.style.left='-9999px';el.style.top='0';el.style.background='#fff';el.style.width='600px'
-  document.body.appendChild(el)
-  try{
-    const canvas=await html2canvas(el,{scale:2,logging:false,useCORS:true})
-    const pxPerMm=canvas.width/pw
-    const pageH=277;const pagePx=Math.floor(pageH*pxPerMm)
-    let srcY=0;let pageNum=0
-    while(srcY<canvas.height){
-      const h=Math.min(pagePx,canvas.height-srcY)
-      if(h<=0)break
-      const pageCanvas=document.createElement('canvas')
-      pageCanvas.width=canvas.width;pageCanvas.height=h
-      const ctx=pageCanvas.getContext('2d')
-      ctx.drawImage(canvas,0,srcY,canvas.width,h,0,0,canvas.width,h)
-      if(pageNum>0)doc.addPage()
-      doc.addImage(pageCanvas.toDataURL('image/jpeg',0.95),'JPEG',0,0,pw,h/pxPerMm)
-      srcY+=h;pageNum++
-    }
-  }catch(err){console.error(err);alert('Erro ao gerar PDF: '+err.message)}finally{document.body.removeChild(el)}
+
+  // Itinerary
+  if(data.itinerary.some(d=>d.activities.length)){
+    section('Itinerario')
+    data.itinerary.forEach(day=>{
+      if(!day.activities.length)return
+      newP();bold('Dia '+day.day,9,'#0b3b60')
+      day.activities.forEach(a=>{newP();txt((a.done?'[x] ':'[ ] ')+(a.time||'')+' '+clean(a.desc)+(a.cost?' $'+a.cost.toFixed(0):''),lm,8);line()})
+    })
+  }
+
+  // Map markers
+  if(data.mapMarkers.length){
+    section('Locais')
+    data.mapMarkers.forEach((m,i)=>{newP();txt((i+1)+'. '+m.name,lm,8);line()})
+  }
+
+  // Packing
+  if(data.packing.length){
+    section('Mala')
+    data.packing.forEach(c=>{
+      const d=c.items.filter(i=>i.done).length;const t=c.items.length
+      newP();bold(clean(c.cat)+' ('+d+'/'+t+')',8)
+      c.items.forEach(i=>{txt((i.done?'[x] ':'[ ] ')+clean(i.name),lm+3,7,'#666');line('#eee')})
+    })
+  }
+
+  // Log
+  if(data.log.length){
+    section('Diario')
+    data.log.sort((a,b)=>b.id-a.id).slice(0,20).forEach(l=>{newP();bold(l.date+(l.km?' '+l.km+'km':''),8,'#c8102e');txt(clean(l.text),lm,7,'#555');line()})
+  }
+
+  // Footer
+  y=Math.max(y,265)
+  doc.setFontSize(7);doc.setTextColor('#aaa')
+  doc.text('Gerado em '+new Date().toLocaleDateString('pt-BR')+' - Orlando & Miami 2026 Planner',pw/2,y+3,{align:'center'})
+
   doc.save(`orlando2026_roteiro_${today()}.pdf`)
 }
 
