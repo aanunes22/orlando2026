@@ -151,6 +151,9 @@ td .badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:
 .mt-12 { margin-top:12px; }
 .hidden { display:none; }
 .chart-container { max-width:400px; margin:0 auto; }
+.curr-toggle { display:flex; border:1px solid var(--border); border-radius:6px; overflow:hidden; flex-shrink:0; }
+.curr-toggle .curr-btn { padding:8px 10px; font-size:.8rem; font-weight:700; cursor:pointer; background:var(--surface2); color:var(--text2); transition:all .2s; border:none; }
+.curr-toggle .curr-btn.active { background:var(--primary); color:#fff; }
 
 .grade-wrap { overflow-x:auto; margin-top:8px; }
 .grade-grid { display:grid; min-width:100%; gap:6px; }
@@ -310,10 +313,9 @@ td .badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:
     <div class="flex-between mb-12"><h2 style="margin:0">Gastos</h2><button class="btn btn-primary btn-sm" onclick="showExpenseForm()">+ Novo</button></div>
     <div id="expense-form" class="hidden">
       <div class="form-row"><div><label>Descrição</label><input type="text" id="expense-desc" placeholder="Ex: Disney"></div>
-        <div><label>Categoria</label><select id="expense-cat"><option value="hotel">Hotel</option><option value="transporte">Transporte</option><option value="parque">Parques</option><option value="compras">Compras</option><option value="alimentacao">Alimentação</option><option value="outros">Outros</option></select></div></div>
-      <div class="form-row three">
-        <div><label>Valor</label><input type="number" id="expense-amount" step="0.01"></div>
-        <div><label>Data</label><input type="date" id="expense-date"></div>
+        <div><label>Data</label><input type="date" id="expense-date"></div></div>
+      <div class="form-row">
+        <div><label>Valor</label><div style="display:flex;gap:6px"><input type="number" id="expense-amount" step="0.01" style="flex:1"><div class="curr-toggle" id="expense-curr-toggle"><span class="curr-btn active" data-curr="USD" onclick="setExpenseCurr('USD')">$</span><span class="curr-btn" data-curr="BRL" onclick="setExpenseCurr('BRL')">R$</span></div></div></div>
         <div><label>Categoria Orçamento</label><select id="expense-budget-cat"><option value="passagem">Passagem</option><option value="hospedagem">Hospedagem</option><option value="transporte">Transporte</option><option value="parques">Parques</option><option value="compras">Compras</option><option value="alimentacao">Alimentação</option><option value="outros">Outros</option></select></div></div>
       <div class="form-row"><button class="btn btn-green" onclick="addExpense()">Adicionar</button><button class="btn btn-ghost" onclick="hideExpenseForm()">Cancelar</button></div>
     </div>
@@ -478,16 +480,23 @@ function renderSummary() {
 function quickAdd(type) {
   const s={passagem:{desc:'Passagem Aérea',cat:'transporte',amount:800,budgetCat:'passagem'},hotel:{desc:'Hotel Orlando',cat:'hotel',amount:1400,budgetCat:'hospedagem'},carro:{desc:'Aluguel de Carro',cat:'transporte',amount:700,budgetCat:'transporte'},disney:{desc:'Disney (4 dias)',cat:'parque',amount:800,budgetCat:'parques'},universal:{desc:'Universal (2 dias)',cat:'parque',amount:400,budgetCat:'parques'},compras:{desc:'Compras Orlando',cat:'compras',amount:500,budgetCat:'compras'},gasolina:{desc:'Gasolina',cat:'transporte',amount:150,budgetCat:'transporte'},comida:{desc:'Alimentação',cat:'alimentacao',amount:600,budgetCat:'alimentacao'}}
   const r=s[type];if(!r)return
-  $('expense-form').classList.remove('hidden');$('expense-desc').value=r.desc;$('expense-cat').value=r.cat;$('expense-amount').value=r.amount;$('expense-date').value=today();$('expense-budget-cat').value=r.budgetCat
+  $('expense-form').classList.remove('hidden');$('expense-desc').value=r.desc;$('expense-amount').value=r.amount;$('expense-date').value=today();$('expense-budget-cat').value=r.budgetCat
 }
 
 // ============ BUDGET ============
-function showExpenseForm(){$('expense-form').classList.remove('hidden');$('expense-date').value=today();$('expense-amount').focus()}
+function showExpenseForm(){$('expense-form').classList.remove('hidden');$('expense-date').value=today();$('expense-amount').focus();setExpenseCurr('USD')}
 function hideExpenseForm(){$('expense-form').classList.add('hidden')}
+function setExpenseCurr(curr){
+  document.querySelectorAll('#expense-curr-toggle .curr-btn').forEach(b=>b.classList.remove('active'))
+  document.querySelector(`#expense-curr-toggle [data-curr="${curr}"]`).classList.add('active')
+}
 function addExpense(){
-  const d=$('expense-desc').value.trim(),c=$('expense-cat').value,a=parseFloat($('expense-amount').value),dt=$('expense-date').value,bc=$('expense-budget-cat').value
+  const d=$('expense-desc').value.trim(),a=parseFloat($('expense-amount').value),dt=$('expense-date').value,bc=$('expense-budget-cat').value
   if(!d||!a||!dt)return alert('Preencha tudo')
-  data.expenses.push({id:Date.now(),desc:d,cat:c,amount:a,date:dt,budgetCat:bc})
+  const catMap={passagem:'transporte',hospedagem:'hotel',transporte:'transporte',parques:'parque',compras:'compras',alimentacao:'alimentacao',outros:'outros'}
+  const curr=document.querySelector('#expense-curr-toggle .active')?.dataset.curr||'USD'
+  const usd=curr==='BRL'?a/(data.exchangeRate||5.20):a
+  data.expenses.push({id:Date.now(),desc:d,cat:catMap[bc]||'outros',amount:usd,date:dt,budgetCat:bc,currency:curr,originalAmount:a})
   $('expense-desc').value='';$('expense-amount').value='';hideExpenseForm();saveData()
 }
 function delExpense(id){data.expenses=data.expenses.filter(e=>e.id!==id);saveData()}
@@ -497,7 +506,8 @@ function renderExpenses() {
   if(!data.expenses.length){$('no-expenses').style.display='block';return}
   $('no-expenses').style.display='none'
   data.expenses.sort((a,b)=>b.id-a.id).forEach(e=>{
-    tb.innerHTML+=`<tr><td>${e.date||'-'}</td><td>${e.desc}</td><td><span class="badge ${badge(e.cat)}">${e.cat}</span></td><td style="font-weight:700">${fmt(e.amount)}</td><td><button class="btn btn-red btn-sm" onclick="delExpense(${e.id})">✕</button></td></tr>`
+    const orig=e.currency&&e.currency!=='USD'?`<span style="color:var(--text2);font-size:.7rem"> (${e.currency==='BRL'?'R$':'$'}${e.originalAmount.toFixed(2)})</span>`:''
+    tb.innerHTML+=`<tr><td>${e.date||'-'}</td><td>${e.desc}</td><td><span class="badge ${badge(e.cat)}">${e.cat}</span></td><td style="font-weight:700">${fmt(e.amount)}${orig}</td><td><button class="btn btn-red btn-sm" onclick="delExpense(${e.id})">✕</button></td></tr>`
   })
   renderBudgetChart()
 }
