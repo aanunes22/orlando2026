@@ -424,9 +424,12 @@ let db
 try{db=new Dexie('OrlandoPlanner');db.version(1).stores({state:'id'})}catch(e){db=null}
 
 async function loadData() {
-  if(db)try{const r=await db.state.get('appState');if(r&&r.data){data={...defaultData(),...r.data};return}}catch(e){}
-  try{const r=localStorage.getItem(STORAGE_KEY);if(r){data={...defaultData(),...JSON.parse(r)};return}}catch(e){}
-  data=defaultData()
+  const fallback=()=>{try{const r=localStorage.getItem(STORAGE_KEY);if(r)data={...defaultData(),...JSON.parse(r)};else data=defaultData()}catch(e){data=defaultData()}}
+  if(db){
+    const timeout=new Promise((_,rej)=>setTimeout(()=>rej('timeout'),1500))
+    try{const r=await Promise.race([db.state.get('appState'),timeout]);if(r&&r.data){data={...defaultData(),...r.data};return}}catch(e){}
+  }
+  fallback()
 }
 
 function saveData() {
