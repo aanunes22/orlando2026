@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Orlando & Miami 2026</title>
 <link rel="manifest" href="manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -28,6 +28,7 @@
 body {
   font-family: 'Segoe UI', Arial, system-ui, sans-serif;
   background: var(--bg); color: var(--text); min-height: 100vh;
+  padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom);
   background-image: radial-gradient(ellipse at 20% 50%, rgba(200,16,46,.06) 0%, transparent 50%), radial-gradient(ellipse at 80% 20%, rgba(11,59,96,.1) 0%, transparent 50%), radial-gradient(ellipse at 50% 80%, rgba(255,199,44,.04) 0%, transparent 50%);
 }
 .container { max-width:1200px; margin:0 auto; padding:0 16px; }
@@ -173,14 +174,56 @@ td .badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:
 .calc-table .ct-v { padding:4px 8px; border-bottom:1px solid var(--border); }
 
 @media(max-width:768px) {
-  .form-row,.form-row.three { grid-template-columns:1fr; }
-  .budget-summary { grid-template-columns:repeat(2,1fr); }
-  .tab-btn { font-size:.75rem; padding:8px 6px; min-width:auto; }
-  .mickey-logo { width:30px; height:30px; }
-  .mickey-logo .ear-l,.mickey-logo .ear-r { width:13px; height:13px; top:1px; }
+  .container { padding:0 10px; }
+  header { padding:12px 0; margin-bottom:12px; }
+  .header-inner { gap:6px; }
+  header h1 { font-size:1.1rem; }
+  header .sub { font-size:.65rem; letter-spacing:1px; }
+  .countdown-wrap { font-size:.85rem; margin-top:4px; }
+  .mickey-logo { width:24px; height:24px; }
+  .mickey-logo .ear-l,.mickey-logo .ear-r { width:10px; height:10px; top:1px; }
   .mickey-logo .ear-l { left:2px; }
   .mickey-logo .ear-r { right:2px; }
-  .mickey-logo .head { width:20px; height:18px; bottom:4px; }
+  .mickey-logo .head { width:16px; height:14px; bottom:3px; }
+  .tabs { gap:2px; padding:3px; flex-wrap:nowrap; overflow-x:auto; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+  .tabs::-webkit-scrollbar { display:none; }
+  .tab-btn { flex:0 0 auto; padding:7px 10px; font-size:.72rem; min-width:auto; white-space:nowrap; }
+  .tab-btn.active { box-shadow:none; }
+  .card { padding:12px; border-radius:10px; margin-bottom:10px; }
+  .card h2 { font-size:1rem; }
+  .form-row,.form-row.three { grid-template-columns:1fr; gap:8px; }
+  .form-row.three { grid-template-columns:1fr 1fr; }
+  .form-row.three > div:first-child { grid-column:1 / -1; }
+  .btn { padding:7px 12px; font-size:.8rem; }
+  .btn-sm { padding:4px 8px; font-size:.72rem; }
+  .budget-summary { grid-template-columns:repeat(2,1fr); gap:8px; }
+  .stat-card { padding:10px; }
+  .stat-card .value { font-size:1.1rem; }
+  #map { height:340px; }
+  .map-controls { gap:5px; }
+  .map-controls .btn { font-size:.72rem; padding:5px 8px; }
+  .suggestion-chip { font-size:.72rem; padding:4px 10px; margin:2px; }
+  .place-cat-header { font-size:.82rem; padding:8px 10px; }
+  .place-item { font-size:.8rem; padding:4px 0; }
+  .activity-item { font-size:.82rem; gap:6px; }
+  .activity-time { min-width:40px; font-size:.78rem; }
+  .packing-item { font-size:.82rem; }
+  .log-item { font-size:.82rem; }
+  table { font-size:.78rem; display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; }
+  th,td { padding:5px 6px; white-space:nowrap; }
+  .chart-container { max-width:280px; }
+  .day-card .form-row.three { grid-template-columns:1fr 1fr; }
+  .day-card .form-row.three > div:first-child { grid-column:1 / -1; }
+  .grade-grid { gap:3px; }
+  .grade-body .grade-cell { min-height:40px; padding:3px; font-size:.65rem; }
+  .grade-body .grade-cell .g-act { padding:2px 4px; }
+  .grade-body .grade-label { font-size:.6rem; padding:3px; }
+  .grade-header .grade-cell { padding:5px 4px; font-size:.65rem; }
+  .calc-row { gap:6px; }
+  .calc-row input { width:100px; }
+  .calc-table { font-size:.78rem; }
+  .budget-progress .cat-header { font-size:.78rem; }
+  .place-cat-body { padding:4px 10px 8px; }
 }
 </style>
 </head>
