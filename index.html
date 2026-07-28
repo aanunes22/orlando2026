@@ -420,18 +420,18 @@ function defaultData() { return {
   log:[], placesInterest:{}
 }}
 
-const db = new Dexie('OrlandoPlanner')
-db.version(1).stores({state:'id'})
+let db
+try{db=new Dexie('OrlandoPlanner');db.version(1).stores({state:'id'})}catch(e){db=null}
 
 async function loadData() {
-  try { const r=await db.state.get('appState'); if(r&&r.data){data={...defaultData(),...r.data};return} }catch(e){}
-  try { const r=localStorage.getItem(STORAGE_KEY); if(r){data={...defaultData(),...JSON.parse(r)};return} }catch(e){}
+  if(db)try{const r=await db.state.get('appState');if(r&&r.data){data={...defaultData(),...r.data};return}}catch(e){}
+  try{const r=localStorage.getItem(STORAGE_KEY);if(r){data={...defaultData(),...JSON.parse(r)};return}}catch(e){}
   data=defaultData()
 }
 
 function saveData() {
   const snap=JSON.parse(JSON.stringify(data))
-  db.state.put({id:'appState',data:snap}).catch(()=>{})
+  if(db)db.state.put({id:'appState',data:snap}).catch(()=>{})
   localStorage.setItem(STORAGE_KEY,JSON.stringify(snap))
   updateAll()
 }
