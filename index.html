@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orlando & Miami 2026</title>
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Orlando2026">
+<link rel="apple-touch-icon" href="icon.svg">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+<script src="https://unpkg.com/dexie@3.2.6/dist/dexie.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+:root {
+  --bg: #0a1628; --surface: #1a2a4a; --surface2: #243b5e;
+  --border: #3a5a8a; --text: #f5f0e8; --text2: #b8c8e8;
+  --primary: #c8102e; --primary-hover: #a00d25; --gold: #ffc72c;
+  --green: #22c55e; --red: #ef4444; --orange: #f97316;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: 'Segoe UI', Arial, system-ui, sans-serif;
+  background: var(--bg); color: var(--text); min-height: 100vh;
+  background-image: radial-gradient(ellipse at 20% 50%, rgba(200,16,46,.06) 0%, transparent 50%), radial-gradient(ellipse at 80% 20%, rgba(11,59,96,.1) 0%, transparent 50%), radial-gradient(ellipse at 50% 80%, rgba(255,199,44,.04) 0%, transparent 50%);
+}
+.container { max-width:1200px; margin:0 auto; padding:0 16px; }
+
+header {
+  background: linear-gradient(135deg, #0b3b60 0%, #1a2a4a 30%, #c8102e 70%, #1a2a4a 100%);
+  padding: 20px 0; margin-bottom:20px; position:relative; overflow:hidden;
+  box-shadow: 0 4px 20px rgba(200,16,46,.3);
+}
+header::before { content:'✦ ✦ ✦'; position:absolute; top:8px; left:0; right:0; text-align:center; font-size:.7rem; color:var(--gold); letter-spacing:20px; animation:twinkle 3s ease-in-out infinite; opacity:.6; }
+header::after { content:''; position:absolute; bottom:0; left:0; right:0; height:3px; background:linear-gradient(90deg,var(--gold),#fff,var(--gold)); opacity:.5; }
+@keyframes twinkle { 0%,100%{opacity:.3} 50%{opacity:1} }
+
+.header-inner { display:flex; align-items:center; justify-content:center; gap:10px; }
+.mickey-logo { position:relative; width:44px; height:44px; display:inline-block; flex-shrink:0; }
+.mickey-logo .ear-l,.mickey-logo .ear-r { position:absolute; width:18px; height:18px; background:#1a1a1a; border-radius:50%; top:2px; z-index:1; }
+.mickey-logo .ear-l { left:4px; }
+.mickey-logo .ear-r { right:4px; }
+.mickey-logo .head { position:absolute; width:28px; height:26px; background:#1a1a1a; border-radius:50%; bottom:6px; left:50%; transform:translateX(-50%); z-index:2; }
+header h1 { font-size:1.6rem; text-align:center; font-weight:800; text-shadow:0 2px 8px rgba(0,0,0,.5); letter-spacing:1px; background:linear-gradient(180deg,#fff,var(--gold)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+header .sub { text-align:center; color:var(--gold); font-size:.85rem; margin-top:2px; font-weight:600; letter-spacing:2px; text-transform:uppercase; text-shadow:0 1px 4px rgba(0,0,0,.5); }
+.countdown-wrap { text-align:center; margin-top:6px; font-size:1rem; }
+.countdown-wrap span { color:var(--gold); font-weight:700; }
+
+.tabs { display:flex; gap:3px; flex-wrap:wrap; margin-bottom:20px; background:var(--surface); border-radius:14px; padding:4px; border:1px solid var(--border); }
+.tab-btn { flex:1; min-width:70px; padding:9px 12px; border:none; border-radius:10px; background:transparent; color:var(--text2); cursor:pointer; font-size:.8rem; font-weight:700; transition:all .25s; text-align:center; }
+.tab-btn:hover { color:var(--text); background:var(--surface2); transform:translateY(-1px); }
+.tab-btn.active { background:linear-gradient(180deg,var(--primary),var(--primary-hover)); color:#fff; box-shadow:0 2px 8px rgba(200,16,46,.4); transform:translateY(-1px); }
+
+.panel { display:none; }
+.panel.active { display:block; animation:fadeIn .3s; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+.card { background:linear-gradient(135deg,var(--surface),#1f3255); border-radius:14px; padding:20px; margin-bottom:16px; border:1px solid var(--border); box-shadow:0 2px 12px rgba(0,0,0,.2); }
+.card h2 { font-size:1.15rem; margin-bottom:12px; color:var(--gold); }
+.card h3 { font-size:.95rem; margin-bottom:8px; color:var(--text2); }
+
+input,select,textarea { background:var(--surface2); border:1px solid var(--border); border-radius:6px; color:var(--text); padding:8px 12px; font-size:.9rem; width:100%; transition:border .2s; font-family:inherit; }
+input:focus,select:focus,textarea:focus { outline:none; border-color:var(--primary); }
+label { display:block; font-size:.8rem; color:var(--text2); margin-bottom:4px; }
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+.form-row.three { grid-template-columns:1fr 1fr 1fr; }
+
+.btn { padding:8px 16px; border:none; border-radius:8px; cursor:pointer; font-weight:700; font-size:.85rem; transition:all .25s; display:inline-flex; align-items:center; gap:6px; }
+.btn-primary { background:linear-gradient(180deg,var(--primary),var(--primary-hover)); color:#fff; }
+.btn-primary:hover { transform:translateY(-1px); }
+.btn-green { background:linear-gradient(180deg,#16a34a,#15803d); color:#fff; }
+.btn-green:hover { transform:translateY(-1px); }
+.btn-red { background:linear-gradient(180deg,var(--red),#dc2626); color:#fff; }
+.btn-red:hover { transform:translateY(-1px); }
+.btn-sm { padding:4px 10px; font-size:.78rem; }
+.btn-ghost { background:var(--surface2); color:var(--text); border:1px solid var(--border); }
+.btn-ghost:hover { background:var(--border); transform:translateY(-1px); }
+
+.budget-summary { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:16px; }
+.stat-card { background:linear-gradient(135deg,var(--surface2),#1e3252); border-radius:10px; padding:14px; text-align:center; border:1px solid var(--border); }
+.stat-card .label { font-size:.75rem; color:var(--text2); text-transform:uppercase; letter-spacing:.5px; }
+.stat-card .value { font-size:1.4rem; font-weight:700; margin-top:2px; }
+.stat-card .value.green { color:var(--green); }
+.stat-card .value.red { color:var(--red); }
+.stat-card .value.primary { color:var(--gold); }
+
+.category-progress { margin-bottom:12px; }
+.category-progress .cat-header { display:flex; justify-content:space-between; font-size:.85rem; margin-bottom:4px; }
+.category-progress .cat-header .cat-name { color:var(--text); }
+.category-progress .cat-header .cat-val { color:var(--text2); }
+.progress-bar { height:6px; background:var(--surface2); border-radius:3px; overflow:hidden; }
+.progress-bar .fill { height:100%; border-radius:3px; transition:width .5s; }
+
+table { width:100%; border-collapse:collapse; font-size:.85rem; }
+th,td { padding:8px 10px; text-align:left; border-bottom:1px solid var(--border); }
+th { color:var(--text2); font-weight:600; text-transform:uppercase; font-size:.75rem; }
+td .badge { display:inline-block; padding:2px 8px; border-radius:4px; font-size:.75rem; font-weight:600; }
+.badge-hotel,.badge-hospedagem { background:#1e3a5f; color:#93c5fd; }
+.badge-transporte,.badge-passagem { background:#3b2f1e; color:#fde68a; }
+.badge-parque,.badge-parques { background:#2d1b3d; color:#d8b4fe; }
+.badge-compras { background:#1e2d1e; color:#86efac; }
+.badge-alimentacao { background:#3d1b1b; color:#fca5a5; }
+.badge-outros { background:#1e1e2d; color:#a5b4fc; }
+
+#map { height:500px; border-radius:12px; z-index:1; border:2px solid var(--border); }
+.map-controls { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+
+.suggestion-chip { display:inline-block; padding:5px 12px; margin:3px; background:var(--surface2); border-radius:20px; font-size:.8rem; cursor:pointer; transition:all .25s; border:1px solid var(--border); }
+.suggestion-chip:hover { background:var(--primary); border-color:var(--primary); color:#fff; transform:translateY(-1px); }
+
+.place-cat { margin-bottom:4px; border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+.place-cat-header { display:flex; align-items:center; gap:8px; padding:10px 14px; background:linear-gradient(135deg,var(--surface),#1f3255); cursor:pointer; font-size:.9rem; font-weight:600; }
+.place-cat-header:hover { background:var(--surface2); }
+.place-cat-header .arrow { transition:transform .2s; font-size:.7rem; color:var(--gold); }
+.place-cat-header .arrow.open { transform:rotate(90deg); }
+.place-cat-body { display:none; padding:6px 14px 10px; background:var(--bg); }
+.place-cat-body.open { display:block; }
+.place-item { display:flex; align-items:center; gap:8px; padding:5px 0; border-bottom:1px solid var(--border); font-size:.85rem; }
+.place-item:last-child { border-bottom:none; }
+
+.day-card { margin-bottom:12px; }
+.day-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+.day-header h3 { color:var(--text); margin:0; }
+.activity-item { display:flex; align-items:flex-start; gap:10px; padding:8px 0; border-bottom:1px solid var(--border); font-size:.9rem; }
+.activity-item:last-child { border-bottom:none; }
+.activity-time { color:var(--gold); font-weight:600; min-width:50px; }
+.activity-text { flex:1; }
+.activity-text .act-cost { color:var(--text2); font-size:.8rem; }
+
+.packing-cat { margin-bottom:12px; }
+.packing-cat h3 { font-size:.95rem; margin-bottom:6px; }
+.packing-item { display:flex; align-items:center; gap:8px; padding:4px 0; font-size:.9rem; }
+.packing-item input[type="checkbox"] { width:16px; height:16px; accent-color:var(--primary); }
+.packing-item .packed { text-decoration:line-through; color:var(--text2); }
+
+.log-item { padding:8px 0; border-bottom:1px solid var(--border); font-size:.9rem; }
+.log-item:last-child { border-bottom:none; }
+.log-date { color:var(--primary); font-weight:600; }
+
+.flex-between { display:flex; justify-content:space-between; align-items:center; }
+.gap-8 { gap:8px; }
+.mb-12 { margin-bottom:12px; }
+.mt-8 { margin-top:8px; }
+.mt-12 { margin-top:12px; }
+.hidden { display:none; }
+.chart-container { max-width:400px; margin:0 auto; }
+
+.grade-wrap { overflow-x:auto; margin-top:8px; }
+.grade-grid { display:grid; min-width:100%; gap:6px; }
+.grade-header { display:contents; }
+.grade-header .grade-cell { background:var(--surface2); border-radius:6px 6px 0 0; padding:8px 6px; text-align:center; font-weight:700; font-size:.75rem; border:1px solid var(--border); border-bottom:none; }
+.grade-header .grade-cell .g-date { color:var(--text2); font-weight:400; font-size:.7rem; display:block; }
+.grade-body { display:contents; }
+.grade-body .grade-label { display:flex; align-items:center; justify-content:center; font-size:.7rem; color:var(--text2); font-weight:600; text-transform:uppercase; letter-spacing:.5px; background:var(--surface); border-radius:6px; border:1px solid var(--border); padding:4px; }
+.grade-body .grade-cell { min-height:60px; background:var(--bg); border-radius:6px; border:1px solid var(--border); padding:4px; font-size:.7rem; }
+.grade-body .grade-cell .g-act { background:var(--surface2); border-radius:4px; padding:3px 5px; margin-bottom:3px; border-left:3px solid var(--primary); }
+.grade-body .grade-cell .g-act .g-time { color:var(--gold); font-weight:600; font-size:.65rem; }
+.grade-body .grade-cell .g-act .g-desc { color:var(--text); }
+.grade-body .grade-cell .g-empty { color:var(--text2); opacity:.4; font-size:.65rem; text-align:center; padding-top:16px; }
+
+.calc-row { display:flex; align-items:center; gap:12px; margin-bottom:8px; flex-wrap:wrap; }
+.calc-row label { min-width:50px; margin:0; }
+.calc-row input { width:140px; }
+.calc-row .calc-arrow { color:var(--gold); font-weight:700; font-size:1.2rem; }
+.calc-table { display:grid; grid-template-columns:1fr 1fr; gap:4px; margin-top:8px; font-size:.85rem; }
+.calc-table .ct-h { color:var(--text2); font-weight:600; padding:4px 8px; background:var(--surface2); border-radius:4px; }
+.calc-table .ct-v { padding:4px 8px; border-bottom:1px solid var(--border); }
+
+@media(max-width:768px) {
+  .form-row,.form-row.three { grid-template-columns:1fr; }
+  .budget-summary { grid-template-columns:repeat(2,1fr); }
+  .tab-btn { font-size:.75rem; padding:8px 6px; min-width:auto; }
+  .mickey-logo { width:30px; height:30px; }
+  .mickey-logo .ear-l,.mickey-logo .ear-r { width:13px; height:13px; top:1px; }
+  .mickey-logo .ear-l { left:2px; }
+  .mickey-logo .ear-r { right:2px; }
+  .mickey-logo .head { width:20px; height:18px; bottom:4px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+  <div class="container">
+    <div class="header-inner">
+      <div class="mickey-logo"><div class="ear-l"></div><div class="ear-r"></div><div class="head"></div></div>
+      <div><h1>Orlando & Miami 2026</h1><div class="sub">Planejador de Viagem</div></div>
+      <div class="mickey-logo"><div class="ear-l"></div><div class="ear-r"></div><div class="head"></div></div>
+    </div>
+    <div class="countdown-wrap" id="countdown"></div>
+  </div>
+</header>
+
+<div class="tabs">
+  <button class="tab-btn active" data-tab="overview">Visão Geral</button>
+  <button class="tab-btn" data-tab="budget">Orçamento</button>
+  <button class="tab-btn" data-tab="map">Mapa</button>
+  <button class="tab-btn" data-tab="itinerary">Itinerário</button>
+  <button class="tab-btn" data-tab="grade">Grade</button>
+  <button class="tab-btn" data-tab="packing">Mala</button>
+  <button class="tab-btn" data-tab="log">Diário</button>
+</div>
+
+<!-- OVERVIEW -->
+<div class="panel active" id="panel-overview">
+  <div class="card">
+    <h2>Configuração</h2>
+    <div class="form-row"><div><label>Ida</label><input type="date" id="trip-start"></div><div><label>Volta</label><input type="date" id="trip-end"></div></div>
+    <div class="form-row"><div><label>Orçamento (USD)</label><input type="number" id="total-budget" value="5000" step="100"></div><div><label>Câmbio USD→BRL</label><input type="number" id="exchange-rate" value="5.20" step="0.01"></div></div>
+    <button class="btn btn-primary" id="save-settings">Salvar</button>
+  </div>
+  <div class="card">
+    <h2>Resumo</h2>
+    <div class="budget-summary">
+      <div class="stat-card"><div class="label">Dias</div><div class="value primary" id="q-days">-</div></div>
+      <div class="stat-card"><div class="label">Gasto</div><div class="value" id="q-spent">$0</div></div>
+      <div class="stat-card"><div class="label">Restante</div><div class="value green" id="q-left">$0</div></div>
+      <div class="stat-card"><div class="label">Km</div><div class="value primary" id="q-km">0</div></div>
+      <div class="stat-card"><div class="label">Atividades</div><div class="value primary" id="q-activities">0</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Sugestões</h2>
+    <div style="display:flex;flex-wrap:wrap;gap:4px">
+      <span class="suggestion-chip" onclick="quickAdd('passagem')">✈️ Passagem $800</span>
+      <span class="suggestion-chip" onclick="quickAdd('hotel')">🏨 Hotel $1.400</span>
+      <span class="suggestion-chip" onclick="quickAdd('carro')">🚗 Carro $700</span>
+      <span class="suggestion-chip" onclick="quickAdd('disney')">🎢 Disney $800</span>
+      <span class="suggestion-chip" onclick="quickAdd('universal')">🎬 Universal $400</span>
+      <span class="suggestion-chip" onclick="quickAdd('compras')">🛍️ Compras $500</span>
+      <span class="suggestion-chip" onclick="quickAdd('gasolina')">⛽ Gasolina $150</span>
+      <span class="suggestion-chip" onclick="quickAdd('comida')">🍔 Comida $600</span>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Câmbio</h2>
+    <div class="calc-row"><label>USD</label><input type="number" id="calc-usd" value="1" step="0.01" oninput="calcUSDtoBRL()"><span class="calc-arrow">→</span><input type="number" id="calc-brl" step="0.01" oninput="calcBRLtoUSD()" placeholder="BRL" readonly style="background:var(--bg);color:var(--gold);font-weight:700"></div>
+    <div class="calc-row"><label>BRL</label><input type="number" id="calc-brl2" step="0.01" oninput="calcBRLtoUSD2()"><span class="calc-arrow">→</span><input type="number" id="calc-usd2" step="0.01" oninput="calcUSDtoBRL2()" placeholder="USD" readonly style="background:var(--bg);color:var(--gold);font-weight:700"></div>
+    <div style="font-size:.75rem;color:var(--text2)">Cotação: $1 = R$<span id="calc-rate-display">5,20</span></div>
+    <div class="calc-table"><div class="ct-h">USD</div><div class="ct-h">BRL</div><div class="ct-v">$10</div><div class="ct-v" id="ct-10">R$52,00</div><div class="ct-v">$50</div><div class="ct-v" id="ct-50">R$260,00</div><div class="ct-v">$100</div><div class="ct-v" id="ct-100">R$520,00</div><div class="ct-v">$500</div><div class="ct-v" id="ct-500">R$2.600,00</div><div class="ct-v">$1.000</div><div class="ct-v" id="ct-1000">R$5.200,00</div></div>
+  </div>
+  <div class="card">
+    <h2>Lugares</h2>
+    <p style="font-size:.85rem;color:var(--text2);margin-bottom:8px">Marque os lugares e adicione ao mapa.</p>
+    <div id="places-container"></div>
+  </div>
+  <div class="card">
+    <h2>Backup</h2>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn btn-primary" onclick="exportBackup()">⬇️ Exportar JSON</button>
+      <label class="btn btn-green" style="cursor:pointer">⬆️ Importar<input type="file" id="import-file" accept=".json" style="display:none"></label>
+      <button class="btn btn-ghost" onclick="exportPDF()">📄 PDF</button>
+    </div>
+    <p style="color:var(--text2);font-size:.75rem;margin-top:8px">Banco: <span id="db-status">carregando...</span></p>
+  </div>
+</div>
+
+<!-- BUDGET -->
+<div class="panel" id="panel-budget">
+  <div class="card">
+    <div class="flex-between mb-12"><h2 style="margin:0">Gastos</h2><button class="btn btn-primary btn-sm" onclick="showExpenseForm()">+ Novo</button></div>
+    <div id="expense-form" class="hidden">
+      <div class="form-row"><div><label>Descrição</label><input type="text" id="expense-desc" placeholder="Ex: Disney"></div>
+        <div><label>Categoria</label><select id="expense-cat"><option value="hotel">Hotel</option><option value="transporte">Transporte</option><option value="parque">Parques</option><option value="compras">Compras</option><option value="alimentacao">Alimentação</option><option value="outros">Outros</option></select></div></div>
+      <div class="form-row three">
+        <div><label>Valor</label><input type="number" id="expense-amount" step="0.01"></div>
+        <div><label>Data</label><input type="date" id="expense-date"></div>
+        <div><label>Categoria Orçamento</label><select id="expense-budget-cat"><option value="passagem">Passagem</option><option value="hospedagem">Hospedagem</option><option value="transporte">Transporte</option><option value="parques">Parques</option><option value="compras">Compras</option><option value="alimentacao">Alimentação</option><option value="outros">Outros</option></select></div></div>
+      <div class="form-row"><button class="btn btn-green" onclick="addExpense()">Adicionar</button><button class="btn btn-ghost" onclick="hideExpenseForm()">Cancelar</button></div>
+    </div>
+  </div>
+  <div class="card"><h2>Orçamento</h2><div id="budget-progress"></div>
+    <div class="mt-12"><div class="form-row three"><div><label>Categoria</label><select id="budget-cat"><option value="passagem">Passagem</option><option value="hospedagem">Hospedagem</option><option value="transporte">Transporte</option><option value="parques">Parques</option><option value="compras">Compras</option><option value="alimentacao">Alimentação</option><option value="outros">Outros</option></select></div>
+      <div><label>Limite</label><input type="number" id="budget-limit" placeholder="1000"></div><div><button class="btn btn-primary btn-sm mt-8" onclick="setBudget()">Definir</button></div></div></div>
+  </div>
+  <div class="card"><h2>Gráfico</h2><div class="chart-container"><canvas id="chart-canvas"></canvas></div></div>
+  <div class="card"><h2>Todos os Gastos</h2>
+    <div style="overflow-x:auto"><table><thead><tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Valor</th><th></th></tr></thead><tbody id="expense-table-body"></tbody></table></div>
+    <div id="no-expenses" style="text-align:center;color:var(--text2);padding:20px">Nenhum gasto.</div>
+  </div>
+</div>
+
+<!-- MAP -->
+<div class="panel" id="panel-map">
+  <div class="card">
+    <h2>🗺️ Mapa</h2>
+    <div class="map-controls">
+      <button class="btn btn-primary btn-sm" onclick="toggleAddMarker()">✏️ Adicionar</button>
+      <button class="btn btn-green btn-sm" onclick="clearAll()" id="btn-clear" style="display:none">🗑️ Limpar</button>
+      <span style="color:var(--text2);font-size:.85rem;align-self:center">Distância: <span id="map-distance">0</span> km</span>
+      <button class="btn btn-ghost btn-sm" onclick="calcRoadRoute()">🛣️ Rota Rodoviária</button>
+    </div>
+    <div id="map"></div>
+    <div id="marker-form" class="hidden" style="background:var(--surface);padding:12px;border-radius:8px;margin-top:8px">
+      <div class="form-row"><div><label>Nome</label><input type="text" id="marker-name" placeholder="Ex: Disney"></div>
+        <div style="display:flex;align-items:flex-end"><button class="btn btn-primary" onclick="saveMarker()">Salvar</button></div></div>
+    </div>
+    <div class="mt-8"><h3>Locais</h3><div id="marker-list" style="max-height:200px;overflow-y:auto"></div></div>
+  </div>
+</div>
+
+<!-- ITINERARY -->
+<div class="panel" id="panel-itinerary">
+  <div class="card">
+    <div class="flex-between mb-12"><h2 style="margin:0">Itinerário</h2><button class="btn btn-primary btn-sm" onclick="addDay()">+ Dia</button></div>
+    <div id="itinerary-days"></div>
+  </div>
+</div>
+
+<!-- GRADE -->
+<div class="panel" id="panel-grade">
+  <div class="card">
+    <div class="flex-between mb-12"><h2 style="margin:0">Grade de Dias</h2></div>
+    <div id="grade-container" style="min-height:100px"></div>
+  </div>
+</div>
+
+<!-- PACKING -->
+<div class="panel" id="panel-packing">
+  <div class="card">
+    <div class="flex-between mb-12"><h2 style="margin:0">Mala</h2></div>
+    <div class="form-row" style="grid-template-columns:2fr 1fr">
+      <div><input type="text" id="packing-input" placeholder="Ex: Passaporte" onkeydown="if(event.key==='Enter')addPackingItem()"></div>
+      <div style="display:flex;gap:8px"><select id="packing-cat-select"><option value="documentos">Documentos</option><option value="roupas">Roupas</option><option value="eletronicos">Eletrônicos</option><option value="higiene">Higiene</option><option value="medicamentos">Medicamentos</option><option value="diversos">Diversos</option></select>
+        <button class="btn btn-primary btn-sm" onclick="addPackingItem()">+</button></div>
+    </div>
+    <div id="packing-lists"></div>
+  </div>
+</div>
+
+<!-- LOG -->
+<div class="panel" id="panel-log">
+  <div class="card">
+    <div class="flex-between mb-12"><h2 style="margin:0">Diário</h2><button class="btn btn-primary btn-sm" onclick="toggleLogForm()">+ Novo</button></div>
+    <div id="log-form" class="hidden">
+      <div class="form-row"><div><label>Data</label><input type="date" id="log-date"></div><div><label>Km</label><input type="number" id="log-km" step="0.1"></div></div>
+      <div class="form-row full"><div><label>Anotação</label><textarea id="log-text" placeholder="O que fez hoje..."></textarea></div></div>
+      <button class="btn btn-green" onclick="addLogEntry()">Salvar</button>
+    </div>
+  </div>
+  <div class="card"><h2>Registros</h2><div id="log-entries"></div></div>
+</div>
+
+</div>
+
+<script>
+// ============ DATA ============
+const STORAGE_KEY = 'orlando2026_planner'
+let data = {}
+let chartInstance = null
+let map, markersLayer, routeLine, routingControl, isAddingMarker = false, tempMarker = null, tempLatLng = null
+
+function defaultData() { return {
+  tripStart:'', tripEnd:'', totalBudget:5000, exchangeRate:5.20,
+  expenses:[], budgets:{ passagem:1000, hospedagem:2000, transporte:1000, parques:1200, compras:1000, alimentacao:700, outros:500 },
+  mapMarkers:[], itinerary:[{day:1,activities:[]}],
+  packing:[
+    {cat:'documentos',items:['Passaporte','Visto (ESTA)','Carteira de Motorista','Seguro Viagem'].map(n=>({name:n,done:false}))},
+    {cat:'roupas',items:['Roupas leves','Agasalho','Tênis confortável','Roupa de banho','Roupas para jantar'].map(n=>({name:n,done:false}))},
+    {cat:'eletronicos',items:['Carregador USB','Power Bank','Adaptador Tomada','Fones de ouvido'].map(n=>({name:n,done:false}))},
+    {cat:'higiene',items:['Protetor Solar','Repelente','Kit Higiene'].map(n=>({name:n,done:false}))},
+    {cat:'medicamentos',items:[{name:'Farmácia básica',done:false}]},
+    {cat:'diversos',items:[{name:'Garrafa de água',done:false},{name:'Mochila',done:false}]}
+  ],
+  log:[], placesInterest:{}
+}}
+
+const db = new Dexie('OrlandoPlanner')
+db.version(1).stores({state:'id'})
+
+async function loadData() {
+  try { const r=await db.state.get('appState'); if(r&&r.data){data={...defaultData(),...r.data};return} }catch(e){}
+  try { const r=localStorage.getItem(STORAGE_KEY); if(r){data={...defaultData(),...JSON.parse(r)};return} }catch(e){}
+  data=defaultData()
+}
+
+function saveData() {
+  const snap=JSON.parse(JSON.stringify(data))
+  db.state.put({id:'appState',data:snap}).catch(()=>{})
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(snap))
+  updateAll()
+}
+
+// ============ UTILS ============
+const $=id=>document.getElementById(id)
+const fmt=v=>'$'+Number(v).toFixed(2)
+const today=()=>new Date().toISOString().split('T')[0]
+const haversine=(a,b,c,d)=>{const R=6371,e=(c-a)*Math.PI/180,f=(d-b)*Math.PI/180;return R*2*Math.atan2(Math.sqrt(Math.sin(e/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(f/2)**2),Math.sqrt(1-(Math.sin(e/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(f/2)**2)))}
+const badge=c=>{const m={hotel:'hotel',hospedagem:'hotel',transporte:'transporte',parque:'parque',parques:'parque',compras:'compras',alimentacao:'alimentacao',passagem:'transporte',outros:'outros'};return 'badge-'+(m[c]||'outros')}
+
+// ============ TABS ============
+document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('active'))
+  document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'))
+  b.classList.add('active');$('panel-'+b.dataset.tab).classList.add('active')
+  if(b.dataset.tab==='map') setTimeout(()=>map&&map.invalidateSize(),100)
+}))
+
+// ============ COUNTDOWN ============
+function renderCountdown() {
+  if(!data.tripStart){$('countdown').innerHTML='Defina a data';return}
+  const d=new Date(data.tripStart+'T00:00').getTime()-Date.now()
+  if(d<=0){$('countdown').innerHTML='✈️ Aproveite! 🎉';return}
+  $('countdown').innerHTML=`⏳ Faltam <span>${Math.floor(d/86400000)}</span> dias!`
+}
+
+// ============ SETTINGS ============
+function renderSettings() {
+  if(data.tripStart)$('trip-start').value=data.tripStart
+  if(data.tripEnd)$('trip-end').value=data.tripEnd
+  $('total-budget').value=data.totalBudget;$('exchange-rate').value=data.exchangeRate
+}
+function saveSettings(){
+  data.tripStart=$('trip-start').value;data.tripEnd=$('trip-end').value
+  data.totalBudget=parseFloat($('total-budget').value)||0;data.exchangeRate=parseFloat($('exchange-rate').value)||5.20
+  saveData()
+}
+
+// ============ OVERVIEW ============
+function renderSummary() {
+  const t=data.expenses.reduce((s,e)=>s+e.amount,0), l=(data.totalBudget||0)-t
+  const days=data.tripStart&&data.tripEnd?Math.round((new Date(data.tripEnd).getTime()-new Date(data.tripStart).getTime())/86400000)+1:0
+  const km=data.mapMarkers.length>1?data.mapMarkers.slice(1).reduce((s,m,i)=>s+haversine(data.mapMarkers[i].lat,data.mapMarkers[i].lng,m.lat,m.lng),0):0
+  $('q-days').textContent=days||'-';$('q-spent').textContent=fmt(t)
+  const le=$('q-left');le.textContent=fmt(Math.max(0,l));le.className='value '+(l<0?'red':'green')
+  $('q-km').textContent=km.toFixed(0);$('q-activities').textContent=data.itinerary.reduce((s,d)=>s+d.activities.length,0)
+}
+
+function quickAdd(type) {
+  const s={passagem:{desc:'Passagem Aérea',cat:'transporte',amount:800,budgetCat:'passagem'},hotel:{desc:'Hotel Orlando',cat:'hotel',amount:1400,budgetCat:'hospedagem'},carro:{desc:'Aluguel de Carro',cat:'transporte',amount:700,budgetCat:'transporte'},disney:{desc:'Disney (4 dias)',cat:'parque',amount:800,budgetCat:'parques'},universal:{desc:'Universal (2 dias)',cat:'parque',amount:400,budgetCat:'parques'},compras:{desc:'Compras Orlando',cat:'compras',amount:500,budgetCat:'compras'},gasolina:{desc:'Gasolina',cat:'transporte',amount:150,budgetCat:'transporte'},comida:{desc:'Alimentação',cat:'alimentacao',amount:600,budgetCat:'alimentacao'}}
+  const r=s[type];if(!r)return
+  $('expense-form').classList.remove('hidden');$('expense-desc').value=r.desc;$('expense-cat').value=r.cat;$('expense-amount').value=r.amount;$('expense-date').value=today();$('expense-budget-cat').value=r.budgetCat
+}
+
+// ============ BUDGET ============
+function showExpenseForm(){$('expense-form').classList.remove('hidden');$('expense-date').value=today();$('expense-amount').focus()}
+function hideExpenseForm(){$('expense-form').classList.add('hidden')}
+function addExpense(){
+  const d=$('expense-desc').value.trim(),c=$('expense-cat').value,a=parseFloat($('expense-amount').value),dt=$('expense-date').value,bc=$('expense-budget-cat').value
+  if(!d||!a||!dt)return alert('Preencha tudo')
+  data.expenses.push({id:Date.now(),desc:d,cat:c,amount:a,date:dt,budgetCat:bc})
+  $('expense-desc').value='';$('expense-amount').value='';hideExpenseForm();saveData()
+}
+function delExpense(id){data.expenses=data.expenses.filter(e=>e.id!==id);saveData()}
+
+function renderExpenses() {
+  const tb=$('expense-table-body');tb.innerHTML=''
+  if(!data.expenses.length){$('no-expenses').style.display='block';return}
+  $('no-expenses').style.display='none'
+  data.expenses.sort((a,b)=>b.id-a.id).forEach(e=>{
+    tb.innerHTML+=`<tr><td>${e.date||'-'}</td><td>${e.desc}</td><td><span class="badge ${badge(e.cat)}">${e.cat}</span></td><td style="font-weight:700">${fmt(e.amount)}</td><td><button class="btn btn-red btn-sm" onclick="delExpense(${e.id})">✕</button></td></tr>`
+  })
+  renderBudgetChart()
+}
+
+function renderBudgetProgress() {
+  const div=$('budget-progress')
+  const cats=['passagem','hospedagem','transporte','parques','compras','alimentacao','outros']
+  const sc={};data.expenses.forEach(e=>{const bc=e.budgetCat||'outros';sc[bc]=(sc[bc]||0)+e.amount})
+  div.innerHTML=cats.map(c=>{
+    const l=data.budgets[c]||0,s=sc[c]||0,pct=l>0?Math.min(100,s/l*100):0,col=pct>90?'var(--red)':pct>70?'var(--orange)':'var(--green)'
+    return `<div class="category-progress"><div class="cat-header"><span class="cat-name">${c.charAt(0).toUpperCase()+c.slice(1)}</span><span class="cat-val">${fmt(s)} / ${fmt(l)}</span></div><div class="progress-bar"><div class="fill" style="width:${pct}%;background:${col}"></div></div></div>`
+  }).join('')
+}
+
+function renderBudgetChart() {
+  if(chartInstance)chartInstance.destroy()
+  const canvas=$('chart-canvas');if(!canvas)return
+  const cats=['passagem','hospedagem','transporte','parques','compras','alimentacao','outros']
+  const spent=cats.map(c=>data.expenses.filter(e=>(e.budgetCat||'outros')===c).reduce((s,e)=>s+e.amount,0))
+  chartInstance=new Chart(canvas,{type:'doughnut',data:{labels:cats.map(c=>c.charAt(0).toUpperCase()+c.slice(1)),datasets:[{data:spent,backgroundColor:['#c8102e','#3b82f6','#f59e0b','#8b5cf6','#22c55e','#f97316','#64748b'],borderColor:'#1a2a4a',borderWidth:2}]},options:{responsive:true,plugins:{legend:{position:'bottom',labels:{color:'#b8c8e8',padding:12,font:{size:11}}}}}})
+}
+
+function setBudget(){
+  const c=$('budget-cat').value,l=parseFloat($('budget-limit').value);if(!l)return;data.budgets[c]=l;$('budget-limit').value='';saveData()
+}
+
+// ============ PLACES ============
+const CATS=[
+  {name:'Disney World',icon:'🏰',places:[{name:'Magic Kingdom',lat:28.3852,lng:-81.5639},{name:'Epcot',lat:28.3747,lng:-81.5494},{name:'Hollywood Studios',lat:28.3570,lng:-81.5602},{name:'Animal Kingdom',lat:28.3588,lng:-81.5904},{name:'Disney Springs',lat:28.3728,lng:-81.5181}]},
+  {name:'Universal',icon:'🎬',places:[{name:'Universal Studios Florida',lat:28.4786,lng:-81.4678},{name:'Islands of Adventure',lat:28.4720,lng:-81.4690},{name:'Volcano Bay',lat:28.4613,lng:-81.4697},{name:'CityWalk',lat:28.4744,lng:-81.4659}]},
+  {name:'Halloween',icon:'🎃',places:[{name:"Mickey's Not-So-Scary Halloween Party",lat:28.3852,lng:-81.5639},{name:'Halloween Horror Nights',lat:28.4786,lng:-81.4678},{name:'Howl-O-Scream',lat:28.4117,lng:-81.4640}]},
+  {name:'Outros Parques',icon:'🎡',places:[{name:'SeaWorld Orlando',lat:28.4117,lng:-81.4640},{name:'Busch Gardens Tampa',lat:28.0336,lng:-82.4212},{name:'Kennedy Space Center',lat:28.5243,lng:-80.6489},{name:'Gatorland',lat:28.3540,lng:-81.4035}]},
+  {name:'Compras',icon:'🛒',places:[{name:'Vineland Premium Outlets',lat:28.3767,lng:-81.4990},{name:'International Premium Outlets',lat:28.4477,lng:-81.4699},{name:'Sawgrass Mills',lat:26.1573,lng:-80.3270},{name:'Dolphin Mall (Miami)',lat:25.7871,lng:-80.3341}]},
+  {name:'Tênis & Esportes',icon:'🎾',places:[{name:'Tennis Plaza Orlando',lat:28.4605,lng:-81.4680},{name:"Dick's Sporting Goods",lat:28.4695,lng:-81.4629},{name:'Nike Factory Store',lat:28.3767,lng:-81.4990}]},
+  {name:'Miami',icon:'🏖️',places:[{name:'South Beach',lat:25.7826,lng:-80.1340},{name:'Hollywood Beach',lat:26.0112,lng:-80.1155},{name:'Wynwood Walls',lat:25.8014,lng:-80.1997},{name:'Little Havana',lat:25.7681,lng:-80.2205},{name:'Everglades',lat:25.7455,lng:-80.7886}]},
+  {name:'Cidades',icon:'🏘️',places:[{name:'Winter Park',lat:28.5960,lng:-81.3398},{name:'Winter Garden',lat:28.5650,lng:-81.5864}]}
+]
+
+function renderPlaces() {
+  if(!data.placesInterest)data.placesInterest={}
+  $('places-container').innerHTML=CATS.map((cat,ci)=>{
+    const int=cat.places.filter(p=>data.placesInterest[p.name]).length
+    return `<div class="place-cat"><div class="place-cat-header" onclick="toggleCat(${ci})"><span class="arrow" id="pa${ci}">▶</span><span>${cat.icon} ${cat.name}</span><span style="margin-left:auto;font-size:.75rem;color:var(--text2)">${int}/${cat.places.length}</span></div>
+    <div class="place-cat-body" id="pb${ci}">${cat.places.map(p=>{
+      const int2=!!data.placesInterest[p.name]
+      return `<div class="place-item"><input type="checkbox" ${int2?'checked':''} onchange="toggleInterest('${p.name}',${p.lat},${p.lng})" style="accent-color:var(--primary);width:16px;height:16px">
+      <span style="flex:1;${int2?'color:var(--primary);font-weight:600':''}">${p.name}</span>
+      <button class="btn btn-primary btn-sm" onclick="addPlaceToMap('${p.name}',${p.lat},${p.lng})">📍 Mapa</button></div>`
+    }).join('')}</div></div>`
+  }).join('')
+}
+function toggleCat(i){$('pb'+i).classList.toggle('open');$('pa'+i).classList.toggle('open')}
+function toggleInterest(n,la,lg){
+  if(data.placesInterest[n]){delete data.placesInterest[n]}
+  else{data.placesInterest[n]=true;if(!data.mapMarkers.some(m=>m.name===n))data.mapMarkers.push({name:n,lat:la,lng:lg})}
+  saveData()
+}
+function addPlaceToMap(n,la,lg){
+  if(!data.mapMarkers.some(m=>m.name===n))data.mapMarkers.push({name:n,lat:la,lng:lg})
+  saveData();switchTab('map');renderMapMarkers()
+}
+function switchTab(t){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'))
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'))
+  document.querySelector(`[data-tab="${t}"]`).classList.add('active');$('panel-'+t).classList.add('active')
+  if(t==='map')setTimeout(()=>map&&map.invalidateSize(),100)
+}
+
+// ============ MAP ============
+function initMap() {
+  map=L.map('map').setView([28.5,-81.3],7)
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap',maxZoom:18}).addTo(map)
+  markersLayer=L.layerGroup().addTo(map)
+  routeLine=L.polyline([],{color:'#c8102e',weight:3,opacity:.7}).addTo(map)
+  map.on('click',e=>{
+    if(!isAddingMarker)return
+    if(tempMarker)map.removeLayer(tempMarker)
+    tempMarker=L.circleMarker(e.latlng,{radius:8,color:'#ffc72c',fillColor:'#c8102e',fillOpacity:.8}).addTo(map)
+    $('marker-name').value='';$('marker-name').focus();$('marker-form').classList.remove('hidden');tempLatLng=e.latlng
+  })
+  renderMapMarkers()
+}
+function toggleAddMarker(){
+  isAddingMarker=!isAddingMarker
+  if(isAddingMarker)map.getContainer().style.cursor='crosshair'
+  else{map.getContainer().style.cursor='';if(tempMarker){map.removeLayer(tempMarker);tempMarker=null}$('marker-form').classList.add('hidden')}
+}
+function saveMarker(){
+  const n=$('marker-name').value.trim()||'Local'
+  if(!tempLatLng)return;data.mapMarkers.push({name:n,lat:tempLatLng.lat,lng:tempLatLng.lng})
+  $('marker-form').classList.add('hidden');if(tempMarker){map.removeLayer(tempMarker);tempMarker=null}
+  isAddingMarker=false;map.getContainer().style.cursor='';saveData();renderMapMarkers()
+}
+function delMarker(i){data.mapMarkers.splice(i,1);saveData();renderMapMarkers()}
+function clearAll(){
+  if(!data.mapMarkers.length||!confirm('Limpar todos?'))return
+  data.mapMarkers=[];saveData();renderMapMarkers()
+}
+function renderMapMarkers() {
+  markersLayer.clearLayers();const pts=data.mapMarkers
+  if(!pts.length){$('marker-list').innerHTML='<div style="color:var(--text2);font-size:.85rem">Nenhum local</div>';$('map-distance').textContent='0';routeLine.setLatLngs([]);$('btn-clear').style.display='none';return}
+  $('btn-clear').style.display=''
+  const markers=pts.map((p,i)=>{
+    const m=L.marker([p.lat,p.lng],{icon:L.divIcon({html:`<div style="background:#c8102e;color:#fff;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;border:2px solid #ffc72c;box-shadow:0 2px 8px rgba(200,16,46,.5)">${i+1}</div>`,className:'',iconSize:[30,30],iconAnchor:[15,15]})}).addTo(markersLayer)
+    m.bindPopup(`<b>${i+1}. ${p.name}</b>`);return m
+  })
+  routeLine.setLatLngs(pts.map(p=>[p.lat,p.lng]))
+  let km=0;for(let i=1;i<pts.length;i++)km+=haversine(pts[i-1].lat,pts[i-1].lng,pts[i].lat,pts[i].lng)
+  $('map-distance').textContent=km.toFixed(1)
+  $('marker-list').innerHTML=pts.map((p,i)=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:.85rem"><span><strong>${i+1}.</strong> ${p.name}</span><button class="btn btn-red btn-sm" onclick="delMarker(${i})">✕</button></div>`).join('')
+  if(pts.length>1)map.fitBounds(L.featureGroup(markers).getBounds().pad(0.1))
+}
+
+// ============ ROAD ROUTE (OSRM) ============
+async function calcRoadRoute() {
+  const pts=data.mapMarkers
+  if(pts.length<2)return alert('Adicione pelo menos 2 locais ao mapa')
+  // Remove old routing control
+  if(routingControl)map.removeControl(routingControl)
+  const waypoints=pts.map(p=>L.latLng(p.lat,p.lng))
+  routingControl=L.Routing.control({
+    waypoints,
+    router:L.Routing.osrmv1({serviceUrl:'https://router.project-osrm.org/route/v1'}),
+    lineOptions:{styles:[{color:'#3b82f6',weight:4,opacity:.8}]},
+    show:true,collapsible:true,
+    formatter: new L.Routing.Formatter({unitSystem:'metric'})
+  }).addTo(map)
+}
+
+// ============ ITINERARY ============
+function renderItinerary() {
+  const div=$('itinerary-days');div.innerHTML=''
+  data.itinerary.forEach((day,di)=>{
+    const card=document.createElement('div');card.className='card day-card'
+    card.innerHTML=`<div class="day-header"><h3>📅 Dia ${day.day}</h3><button class="btn btn-red btn-sm" onclick="removeDay(${di})">✕</button></div>
+    <div>${day.activities.length===0?'<div style="color:var(--text2);font-size:.85rem">Nenhuma atividade</div>':''}
+    ${day.activities.map((act,ai)=>`<div class="activity-item"><input type="checkbox" ${act.done?'checked':''} onchange="toggleAct(${di},${ai})" style="accent-color:var(--primary);width:16px;height:16px;margin-top:2px">
+    <div class="activity-time">${act.time||'--:--'}</div><div class="activity-text"><div style="${act.done?'text-decoration:line-through;color:var(--text2)':''}">${act.desc}</div>${act.cost?'<div class="act-cost">'+fmt(act.cost)+'</div>':''}</div>
+    <button class="btn btn-red btn-sm" onclick="removeAct(${di},${ai})">✕</button></div>`).join('')}</div>
+    <div class="mt-8"><div class="form-row three" style="margin-bottom:4px"><div><input type="text" id="ad${di}" placeholder="Descrição"></div>
+    <div><input type="time" id="at${di}" value="09:00"></div><div><input type="number" id="ac${di}" placeholder="Custo $" step="0.01"></div></div>
+    <button class="btn btn-primary btn-sm" onclick="addAct(${di})">+ Adicionar</button></div>`
+    div.appendChild(card)
+  })
+}
+function addDay(){data.itinerary.push({day:data.itinerary.length+1,activities:[]});saveData()}
+function removeDay(i){data.itinerary.splice(i,1);data.itinerary.forEach((d,j)=>d.day=j+1);saveData()}
+function addAct(di){const d=$('ad'+di).value.trim();if(!d)return;const t=$('at'+di).value,c=parseFloat($('ac'+di).value)||0;data.itinerary[di].activities.push({desc:d,time:t,cost:c,done:false});$('ad'+di).value='';$('ac'+di).value='';saveData()}
+function toggleAct(di,ai){data.itinerary[di].activities[ai].done=!data.itinerary[di].activities[ai].done;saveData()}
+function removeAct(di,ai){data.itinerary[di].activities.splice(ai,1);saveData()}
+
+// ============ PACKING ============
+const PK={documentos:'Documentos',roupas:'Roupas',eletronicos:'Eletrônicos',higiene:'Higiene',medicamentos:'Medicamentos',diversos:'Diversos'}
+function renderPacking() {
+  const div=$('packing-lists');div.innerHTML=''
+  data.packing.forEach(pc=>{
+    const t=pc.items.length,d=pc.items.filter(i=>i.done).length,pct=t>0?Math.round(d/t*100):0
+    const sec=document.createElement('div');sec.className='packing-cat'
+    sec.innerHTML=`<div class="flex-between"><h3>${PK[pc.cat]||pc.cat} (${d}/${t})</h3><span style="font-size:.75rem;color:${pct===100?'var(--green)':'var(--text2)'}">${pct}%</span></div>
+    <div class="progress-bar mb-12"><div class="fill" style="width:${pct}%;background:${pct===100?'var(--green)':'var(--primary)'}"></div></div>
+    ${pc.items.map((item,i)=>`<div class="packing-item"><input type="checkbox" ${item.done?'checked':''} onchange="togglePack('${pc.cat}',${i})" style="accent-color:var(--primary);width:16px;height:16px">
+    <span class="${item.done?'packed':''}">${item.name}</span><button class="btn btn-red btn-sm" style="margin-left:auto" onclick="removePack('${pc.cat}',${i})">✕</button></div>`).join('')}`
+    div.appendChild(sec)
+  })
+}
+function togglePack(c,i){const p=data.packing.find(x=>x.cat===c);if(p){p.items[i].done=!p.items[i].done;saveData()}}
+function removePack(c,i){const p=data.packing.find(x=>x.cat===c);if(p){p.items.splice(i,1);saveData()}}
+function addPackingItem(){const n=$('packing-input').value.trim();if(!n)return;const c=$('packing-cat-select').value;let p=data.packing.find(x=>x.cat===c);if(!p){p={cat:c,items:[]};data.packing.push(p)}p.items.push({name:n,done:false});$('packing-input').value='';saveData()}
+
+// ============ LOG ============
+function renderLog() {
+  const div=$('log-entries');div.innerHTML=''
+  if(!data.log.length){div.innerHTML='<div style="color:var(--text2);text-align:center;padding:20px">Nenhum registro</div>';return}
+  data.log.sort((a,b)=>b.id-a.id).forEach(l=>{div.innerHTML+=`<div class="log-item"><div class="flex-between"><span class="log-date">${l.date}</span><div>${l.km?'<span style="color:var(--text2);font-size:.85rem">🚗 '+l.km+' km</span>':''}<button class="btn btn-red btn-sm" onclick="delLog(${l.id})">✕</button></div></div><div style="white-space:pre-wrap;margin-top:4px">${l.text}</div></div>`})
+}
+function toggleLogForm(){$('log-form').classList.toggle('hidden');$('log-date').value=today()}
+function addLogEntry(){const d=$('log-date').value,k=parseFloat($('log-km').value)||0,t=$('log-text').value.trim();if(!d||!t)return alert('Preencha tudo');data.log.push({id:Date.now(),date:d,km:k,text:t});$('log-km').value='';$('log-text').value='';$('log-form').classList.add('hidden');saveData()}
+function delLog(id){data.log=data.log.filter(l=>l.id!==id);saveData()}
+
+// ============ BACKUP ============
+function exportBackup(){const b=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),u=URL.createObjectURL(b),a=document.createElement('a');a.href=u;a.download=`orlando2026_${today()}.json`;a.click();URL.revokeObjectURL(u)}
+function importBackup(){const f=$('import-file').files[0];if(!f)return;const r=new FileReader();r.onload=e=>{try{const d=JSON.parse(e.target.result);if(!d.expenses)throw Error();Object.assign(data,d);saveData();alert('Importado!')}catch{alert('Arquivo inválido')}};r.readAsText(f);$('import-file').value=''}
+$('import-file')?.addEventListener('change',importBackup)
+
+// ============ EXPORT PDF ============
+async function exportPDF() {
+  const{jsPDF}=window.jspdf
+  const doc=new jsPDF('p','mm','a4')
+  const pw=210;let y=20
+  const t=(txt,sz=16,col='#c8102e')=>{doc.setFontSize(sz);doc.setTextColor(col);doc.text(txt,pw/2,y,{align:'center'});y+=sz>12?10:7}
+  const s=txt=>{doc.setFontSize(12);doc.setTextColor('#c8102e');y+=3;doc.text(txt,14,y);y+=5}
+  const l=(txt,rt)=>{doc.setFontSize(9);doc.setTextColor(180,180,180);if(rt){doc.text(txt,14,y);doc.text(rt,pw-14,y,{align:'right'})}else doc.text(txt,14,y);y+=4}
+  const cp=()=>{if(y>270){doc.addPage();y=20}}
+  t('Orlando & Miami 2026',16,'#c8102e');t('Planejador de Viagem',10,'#ffc72c');y+=4;doc.setDrawColor(200,16,46);doc.line(14,y,pw-14,y);y+=6
+  s('Dados');l(`Ida: ${data.tripStart||'—'}`,`Volta: ${data.tripEnd||'—'}`)
+  const total=data.expenses.reduce((s,e)=>s+e.amount,0)
+  l(`Orçamento: $${data.totalBudget.toFixed(2)}`,`Gasto: $${total.toFixed(2)}`)
+  y+=3;s('Gastos')
+  if(data.expenses.length){data.expenses.forEach(e=>{cp();l(`${e.date} — ${e.desc}`,`$${e.amount.toFixed(2)}`)})}else l('Nenhum')
+  y+=3;s('Itinerário');data.itinerary.forEach(day=>{cp();l(`Dia ${day.day}`);day.activities.forEach(a=>{cp();l(` ${a.done?'✓':'○'} ${a.time} ${a.desc}${a.cost?' $'+a.cost:''}`)})})
+  y+=3;s('Mapa');data.mapMarkers.forEach((m,i)=>l(`${i+1}. ${m.name}`))
+  y+=3;s('Mala');data.packing.forEach(c=>{cp();const d=c.items.filter(i=>i.done).length;l(`${c.cat} (${d}/${c.items.length})`);c.items.forEach(i=>{cp();l(` ${i.done?'✓':'○'} ${i.name}`)})})
+  if(data.log.length){y+=3;s('Diário');data.log.forEach(l=>{cp();l(`${l.date}${l.km?' '+l.km+'km':''}`);l(` ${l.text}`)})}
+  doc.save(`orlando2026_roteiro_${today()}.pdf`)
+}
+
+// ============ DB STATUS ============
+function updateDBStatus(){$('db-status').innerHTML='<span style="color:var(--green)">● IndexedDB</span>'}
+
+// ============ EXCHANGE CALCULATOR ============
+function calcUSDtoBRL(){const u=parseFloat($('calc-usd').value)||0;const r=data.exchangeRate||5.20;$('calc-brl').value=(u*r).toFixed(2);updateCalcTable()}
+function calcBRLtoUSD(){const b=parseFloat($('calc-brl').value)||0;const r=data.exchangeRate||5.20;$('calc-usd').value=(b/r).toFixed(2);updateCalcTable()}
+function calcUSDtoBRL2(){const u=parseFloat($('calc-usd2').value)||0;const r=data.exchangeRate||5.20;$('calc-brl2').value=(u*r).toFixed(2);updateCalcTable()}
+function calcBRLtoUSD2(){const b=parseFloat($('calc-brl2').value)||0;const r=data.exchangeRate||5.20;$('calc-usd2').value=(b/r).toFixed(2);updateCalcTable()}
+function updateCalcTable(){const r=data.exchangeRate||5.20;const vals=[10,50,100,500,1000];vals.forEach(v=>{const el=$('ct-'+v);if(el)el.textContent='R$'+(v*r).toFixed(2).replace('.',',')});$('calc-rate-display').textContent=r.toFixed(2).replace('.',',')}
+
+// ============ GRADE DE DIAS ============
+function renderGrade() {
+  const div=$('grade-container');div.innerHTML=''
+  if(!data.tripStart||!data.itinerary.length){div.innerHTML='<div style="color:var(--text2);text-align:center;padding:20px">Defina as datas e crie atividades no Itinerário.</div>';return}
+  const start=new Date(data.tripStart+'T12:00')
+  const days=data.itinerary.length
+  if(days===0){div.innerHTML='<div style="color:var(--text2);text-align:center;padding:20px">Nenhum dia no itinerário.</div>';return}
+  const periods=[{key:'morning',label:'🌅 Manhã',max:'12:00'},{key:'afternoon',label:'☀️ Tarde',max:'18:00'},{key:'evening',label:'🌙 Noite',max:'99:99'}]
+  const dayNames=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
+  function getPeriod(time){
+    if(!time)return 'morning'
+    for(const p of periods){if(time<p.max)return p.key}
+    return 'evening'
+  }
+  function getDate(d){const dt=new Date(start);dt.setDate(dt.getDate()+d);return dt}
+  function fmtDate(dt){return dt.getDate()+'/'+(dt.getMonth()+1)}
+  const wrap=document.createElement('div');wrap.className='grade-wrap'
+  const grid=document.createElement('div');grid.className='grade-grid'
+  const ncols=days+1
+  grid.style.gridTemplateColumns=`80px repeat(${days},minmax(140px,1fr))`
+  // Header
+  let html=`<div class="grade-header"><div class="grade-cell" style="background:transparent;border:none">Período</div>`
+  for(let i=0;i<days;i++){
+    const dt=getDate(i);const dn=dayNames[dt.getDay()]
+    html+=`<div class="grade-cell">Dia ${i+1}<span class="g-date">${dn} ${fmtDate(dt)}</span></div>`
+  }
+  html+=`</div>`
+  // Body
+  periods.forEach(p=>{
+    html+=`<div class="grade-body"><div class="grade-label">${p.label}</div>`
+    for(let i=0;i<days;i++){
+      const acts=data.itinerary[i]?.activities||[]
+      const filtered=acts.filter(a=>getPeriod(a.time)===p.key).sort((a,b)=>(a.time||'').localeCompare(b.time||''))
+      if(filtered.length){
+        let cell='<div class="grade-cell">'
+        filtered.forEach(a=>{
+          cell+=`<div class="g-act"><span class="g-time">${a.time||'--:--'}</span> <span class="g-desc">${a.desc}${a.cost?' $'+a.cost.toFixed(0):''}</span></div>`
+        })
+        cell+=`</div>`
+        html+=cell
+      }else{
+        html+=`<div class="grade-cell"><div class="g-empty">—</div></div>`
+      }
+    }
+    html+=`</div>`
+  })
+  grid.innerHTML=html
+  wrap.appendChild(grid)
+  div.appendChild(wrap)
+}
+function initCalc(){calcUSDtoBRL();updateCalcTable()}
+
+// ============ UPDATE ALL ============
+function updateAll() {
+  renderCountdown();renderSummary();renderExpenses();renderBudgetProgress();renderItinerary();renderPacking();renderLog();renderPlaces();renderSettings();renderMapMarkers();renderGrade();initCalc()
+}
+
+// ============ INIT ============
+document.addEventListener('DOMContentLoaded',async function(){
+  await loadData()
+  initMap()
+  updateAll()
+  updateDBStatus()
+  $('save-settings').addEventListener('click',saveSettings)
+  // Register service worker for offline
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.register('service-worker.js').catch(()=>{})
+  }
+})
+</script>
+</body>
+</html>

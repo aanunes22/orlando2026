@@ -1,0 +1,20 @@
+{
+  "name": "Orlando & Miami 2026",
+  "short_name": "Orlando2026",
+  "description": "Planejador de viagem para Orlando e Miami",
+  "start_url": "index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a1628",
+  "theme_color": "#c8102e",
+  "categories": ["travel", "utilities"],
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": []
+}
